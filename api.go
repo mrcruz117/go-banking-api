@@ -40,6 +40,7 @@ func NewAPIServer(listenAddr string) *APIServer {
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount)).Methods("GET")
+	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccount)).Methods("GET")
 
 	log.Printf("API server listening on %s", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
@@ -59,8 +60,12 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	return fmt.Errorf("unsupported method %s", r.Method)
 }
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
-	account := NewAccount("John", "Doe")
-	return WriteJSON(w, http.StatusOK, account)
+	id := mux.Vars(r)["id"]
+	fmt.Println(id)
+	// db.GetAccount(id)
+
+	// account := NewAccount("John", "Doe")
+	return WriteJSON(w, http.StatusOK, &Account{})
 }
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	return nil
