@@ -26,7 +26,7 @@ func NewPostgresStore() (*PostgresStore, error) {
 		return nil, err
 	}
 	dbPassword := os.Getenv("DB_PASSWORD")
-	connStr := fmt.Sprintf("user=postgres dbname=go-bank-db password=%s sslmode=disable", dbPassword)
+	connStr := fmt.Sprintf("user=postgres dbname=postgres password=%s sslmode=disable", dbPassword)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
