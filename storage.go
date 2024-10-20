@@ -14,6 +14,8 @@ type Storage interface {
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountById(int) (*Account, error)
+	Init() error
+	createAccountTable() error
 }
 
 type PostgresStore struct {
@@ -49,4 +51,22 @@ func (s *PostgresStore) DeleteAccount(id int) error {
 }
 func (s *PostgresStore) GetAccountById(id int) (*Account, error) {
 	return nil, nil
+}
+
+func (s *PostgresStore) Init() error {
+	return nil
+}
+
+func (s *PostgresStore) createAccountTable() error {
+	query := `CREATE TABLE IF NOT EXISTS account (
+		id SERIAL PRIMARY KEY,
+		first_name varchar(50),
+		last_name varchar(50),
+		number SERIAL,
+		balance INT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	return err
 }
