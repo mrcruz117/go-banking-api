@@ -29,7 +29,9 @@ func NewPostgresStore() (*PostgresStore, error) {
 		return nil, err
 	}
 	dbPassword := os.Getenv("DB_PASSWORD")
-	connStr := fmt.Sprintf("user=postgres dbname=postgres password=%s sslmode=disable", dbPassword)
+	dbPort := os.Getenv("DB_PORT")
+
+	connStr := fmt.Sprintf("user=postgres dbname=go-bank password=%s port=%s sslmode=disable", dbPassword, dbPort)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -70,8 +72,7 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	}
 	accounts := []*Account{}
 	for rows.Next() {
-		a := new(Account)
-		err := rows.Scan(&a.ID, &a.FirstName, &a.LastName, &a.Number, &a.Balance, &a.CreatedAt)
+		a, err := scanIntoAccount(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -96,4 +97,17 @@ func (s *PostgresStore) createAccountTable() error {
 
 	_, err := s.db.Exec(query)
 	return err
+}
+
+func scanIntoAccount(rows *sql.Rows) (*Account, error) {
+	account := new(Account)
+	err := rows.Scan(
+		&account.ID,
+		&account.FirstName,
+		&account.LastName,
+		&account.Number,
+		&account.Balance,
+		&account.CreatedAt,
+	)
+	return account, err
 }
