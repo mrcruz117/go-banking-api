@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -37,9 +38,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	if r.Method == "POST" {
 		return s.handleCreateAccount(w, r)
 	}
-	if r.Method == "DELETE" {
-		return s.handleDeleteAccount(w, r)
-	}
 
 	return fmt.Errorf("unsupported method %s", r.Method)
 
@@ -56,12 +54,22 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 
 // GET /account/{id}
 func (s *APIServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error {
-	id := mux.Vars(r)["id"]
-	fmt.Println(id)
-	// db.GetAccount(id)
+	if r.Method == "GET" {
+		id, err := getId(r)
+		if err != nil {
+			return err
+		}
 
-	// account := NewAccount("John", "Doe")
-	return WriteJSON(w, http.StatusOK, &Account{})
+		account, err := s.store.GetAccountById(id)
+		if err != nil {
+			return err
+		}
+		return WriteJSON(w, http.StatusOK, account)
+	}
+	if r.Method == "DELETE" {
+		return s.handleDeleteAccount(w, r)
+	}
+	return fmt.Errorf("method not allowed: %s", r.Method)
 }
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	createAccountReq := new(CreateAccountRequest)
@@ -74,8 +82,18 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	}
 	return WriteJSON(w, http.StatusOK, account)
 }
+
+// DELETE /account/{id}
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	id, err := getId(r)
+	if err != nil {
+		return err
+	}
+	err = s.store.DeleteAccount(id)
+	if err != nil {
+		return err
+	}
+	return WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": id})
 }
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
 	return nil
@@ -90,7 +108,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 type apiFunc func(w http.ResponseWriter, r *http.Request) error
 
 type ApiError struct {
-	Error string
+	Error string `json:"error"`
 }
 
 func makeHTTPHandleFunc(fn apiFunc) http.HandlerFunc {
@@ -99,4 +117,13 @@ func makeHTTPHandleFunc(fn apiFunc) http.HandlerFunc {
 			WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
 		}
 	}
+}
+
+func getId(r *http.Request) (int, error) {
+	idStr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid id given %s", idStr)
+	}
+	return id, nil
 }
