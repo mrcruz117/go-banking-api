@@ -26,8 +26,9 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
+
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", withJwtAuth(makeHTTPHandleFunc(s.handleGetAccountById)))
+	router.HandleFunc("/account/{id}", withJwtAuth(makeHTTPHandleFunc(s.handleGetAccountById), s.store))
 	router.HandleFunc("/transfer", makeHTTPHandleFunc(s.handleTransfer)).Methods("POST")
 
 	log.Printf("API server listening on %s", s.listenAddr)
@@ -132,19 +133,41 @@ func createJWT(account *Account) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-func withJwtAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tokenString := r.Header.Get("x-jwt-token")
+func permissionDenied(w http.ResponseWriter) {
+	WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+}
 
-		_, err := validateJWT(tokenString)
+func withJwtAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("calling JWT auth middleware")
+
+		tokenString := r.Header.Get("x-jwt-token")
+		token, err := validateJWT(tokenString)
 		if err != nil {
-			WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+			permissionDenied(w)
 			return
 		}
-		// if !token.Valid {
-		// 	WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
-		// 	return
-		// }
+		if !token.Valid {
+			permissionDenied(w)
+			return
+		}
+		userID, err := getId(r)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+		account, err := s.GetAccountById(userID)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+		if account.Number != int64(claims["accountNumber"].(float64)) {
+			permissionDenied(w)
+			return
+		}
+
 		handlerFunc(w, r)
 	}
 }
