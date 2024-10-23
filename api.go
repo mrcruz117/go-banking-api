@@ -30,6 +30,7 @@ func (s *APIServer) Run() {
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJwtAuth(makeHTTPHandleFunc(s.handleGetAccountById), s.store))
 	router.HandleFunc("/transfer", makeHTTPHandleFunc(s.handleTransfer)).Methods("POST")
+	router.HandleFunc("/jwt", makeHTTPHandleFunc(s.handleGenJwt)).Methods("POST")
 
 	log.Printf("API server listening on %s", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
@@ -106,6 +107,28 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	}
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": id})
 }
+
+func (s *APIServer) handleGenJwt(w http.ResponseWriter, r *http.Request) error {
+	account := new(Account)
+	if err := json.NewDecoder(r.Body).Decode(account); err != nil {
+		return err
+	}
+	// check info against db
+	user, err := s.store.GetAccountById(account.ID)
+	if err != nil || account.Number != user.Number {
+		return WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+	}
+
+	defer r.Body.Close()
+
+	tokenString, err := createJWT(account)
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, map[string]string{"token": tokenString})
+}
+
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
 	transferReq := new(TransferRequest)
 	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
