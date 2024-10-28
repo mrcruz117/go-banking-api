@@ -7,7 +7,6 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Storage interface {
@@ -46,25 +45,13 @@ func NewPostgresStore() (*PostgresStore, error) {
 
 }
 
-func encryptPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hash), nil
-}
-
 func (s *PostgresStore) CreateAccount(a *Account) error {
-	encryptedPassword, err := encryptPassword(a.EncryptedPassword)
-	if err != nil {
-		return err
-	}
 
 	query := `INSERT INTO account
     (first_name, last_name, number, encrypted_password, balance)
     VALUES ($1, $2, $3, $4, $5)`
 
-	_, err = s.db.Exec(query, a.FirstName, a.LastName, a.Number, encryptedPassword, a.Balance)
+	_, err := s.db.Exec(query, a.FirstName, a.LastName, a.Number, a.EncryptedPassword, a.Balance)
 
 	if err != nil {
 		return err
