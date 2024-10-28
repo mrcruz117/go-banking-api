@@ -47,9 +47,21 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// validate password
-	// account, err := s.store.GetAccountByNumber(req.Number)
-	return nil
+	account, err := s.store.GetAccountByNumber(int64(req.Number))
+	if err != nil {
+		return err
+	}
+	// if !account.ValidatePassword(req.Password) {
+	// 	return fmt.Errorf("invalid password")
+	// }
+	fmt.Printf("%+v\n", account)
 
+	return WriteJSON(w, http.StatusOK, account)
+
+}
+
+func (a *Account) ValidatePassword(pw string) bool {
+	return a.EncryptedPassword == pw
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {

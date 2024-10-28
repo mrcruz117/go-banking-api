@@ -7,6 +7,7 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Storage interface {
@@ -42,13 +43,28 @@ func NewPostgresStore() (*PostgresStore, error) {
 		return nil, err
 	}
 	return &PostgresStore{db: db}, nil
+
+}
+
+func encryptPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
 }
 
 func (s *PostgresStore) CreateAccount(a *Account) error {
+	encryptedPassword, err := encryptPassword(a.EncryptedPassword)
+	if err != nil {
+		return err
+	}
+
 	query := `INSERT INTO account
-    (first_name, last_name, number, balance)
-    VALUES ($1, $2, $3, $4)`
-	_, err := s.db.Exec(query, a.FirstName, a.LastName, a.Number, a.Balance)
+    (first_name, last_name, number, encrypted_password, balance)
+    VALUES ($1, $2, $3, $4, $5)`
+
+	_, err = s.db.Exec(query, a.FirstName, a.LastName, a.Number, encryptedPassword, a.Balance)
 
 	if err != nil {
 		return err
@@ -81,11 +97,10 @@ func (s *PostgresStore) GetAccountByNumber(number int64) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	account, err := scanIntoAccount(rows)
-	if err != nil {
-		return nil, err
+	for rows.Next() {
+		return scanIntoAccount(rows)
 	}
-	return account, nil
+	return nil, fmt.Errorf("account %d not found", number)
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
@@ -125,7 +140,9 @@ func (s *PostgresStore) createAccountTable() error {
 
 func (s *PostgresStore) AlterAccountTable() error {
 	query := `ALTER TABLE account
-	ADD CONSTRAINT unique_number UNIQUE (number);`
+	ADD COLUMN encrypted_password varchar(100)
+	`
+
 	_, err := s.db.Exec(query)
 	return err
 }
@@ -137,6 +154,7 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 		&account.FirstName,
 		&account.LastName,
 		&account.Number,
+		&account.EncryptedPassword,
 		&account.Balance,
 		&account.CreatedAt,
 	)

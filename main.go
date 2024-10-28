@@ -12,7 +12,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// seedAccounts(store)
+	seedAccounts(store)
 
 	server := NewAPIServer(":8088", store)
 	server.Run()
@@ -31,6 +31,9 @@ func seedAccount(s Storage, firstName, lastName, password string) *Account {
 }
 
 func seedAccounts(s Storage) {
+
+	seedAccount(s, "Michael", "Cruz", "strongPassword123")
+	seedAccount(s, "Sophia", "Cruz", "strongPassword1234")
 	seedAccount(s, "John", "Doe", "password1")
 	seedAccount(s, "Jane", "Doe", "password2")
 	seedAccount(s, "Jim", "Beam", "password3")
