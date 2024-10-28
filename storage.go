@@ -14,6 +14,7 @@ type Storage interface {
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountById(int) (*Account, error)
+	GetAccountByNumber(int64) (*Account, error)
 	GetAccounts() ([]*Account, error)
 	Init() error
 	createAccountTable() error
@@ -74,6 +75,19 @@ func (s *PostgresStore) GetAccountById(id int) (*Account, error) {
 	}
 	return nil, fmt.Errorf("account %d not found", id)
 }
+
+func (s *PostgresStore) GetAccountByNumber(number int64) (*Account, error) {
+	rows, err := s.db.Query("SELECT * FROM account WHERE number = $1", number)
+	if err != nil {
+		return nil, err
+	}
+	account, err := scanIntoAccount(rows)
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	rows, err := s.db.Query("SELECT * FROM account")
 	if err != nil {
@@ -99,11 +113,19 @@ func (s *PostgresStore) createAccountTable() error {
 		id SERIAL PRIMARY KEY,
 		first_name varchar(50),
 		last_name varchar(50),
-		number SERIAL,
+		number SERIAL UNIQUE,
+		encrypted_password varchar(100),
 		balance INT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)`
 
+	_, err := s.db.Exec(query)
+	return err
+}
+
+func (s *PostgresStore) AlterAccountTable() error {
+	query := `ALTER TABLE account
+	ADD CONSTRAINT unique_number UNIQUE (number);`
 	_, err := s.db.Exec(query)
 	return err
 }

@@ -38,6 +38,9 @@ func (s *APIServer) Run() {
 }
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("method not allowed %s", r.Method)
+	}
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
@@ -89,6 +92,7 @@ func (s *APIServer) handleGetAccountById(w http.ResponseWriter, r *http.Request)
 	}
 	return fmt.Errorf("method not allowed: %s", r.Method)
 }
+
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	createAccountReq := new(CreateAccountRequest)
 	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
@@ -102,12 +106,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return err
 	}
-	tokenString, err := createJWT(account)
-	if err != nil {
-		return err
-	}
-	fmt.Println("tokenString", tokenString)
-	w.Header().Add("x-jwt-token", tokenString)
+
 	return WriteJSON(w, http.StatusOK, account)
 }
 
