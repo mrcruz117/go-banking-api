@@ -56,11 +56,23 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	err = account.ValidatePassword([]byte(req.Password))
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
-		return fmt.Errorf("invalid password")
+		return fmt.Errorf("invalid authorization")
 	}
 	fmt.Printf("%+v\n", account)
 
-	return WriteJSON(w, http.StatusOK, account)
+	tokenString, err := createJWT(account)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("tokenString: %s\n", tokenString)
+
+	resp := LoginResponse{
+		Number: account.Number,
+		Token:  tokenString,
+	}
+
+	return WriteJSON(w, http.StatusOK, resp)
 
 }
 
