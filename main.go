@@ -12,7 +12,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	seedAccounts(store)
+	// seedAccounts(store)
 
 	server := NewAPIServer(":8088", store)
 	server.Run()
